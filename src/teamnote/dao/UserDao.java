@@ -11,7 +11,7 @@ public interface UserDao
 {
 	User findById(long id);
 	User findByName(String name);
-	User findByNameAndPass(String name,String pass);
+	User findByNameAndPass(User user);
 	
 	User findByMenuOwner(Menu menu);
 

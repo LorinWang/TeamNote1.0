@@ -17,7 +17,7 @@ public interface UserGroupDao
 
 	UserGroup findByDocOwner(Doc doc);
 
-	UserGroup findByGroupOwner(User user);
+	List<UserGroup> findByGroupOwner(User user);
 
 	long save(UserGroup userGroup);
 
