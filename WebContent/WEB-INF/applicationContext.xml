@@ -14,7 +14,7 @@
 
 	<!-- 定义数据源Bean，使用C3P0数据源实现 -->
 	<!-- 设置连接数据库的驱动、URL、用户名、密码
-		连接池最大连接数、最小连接数、初始连接数等参数 -->
+	连接池最大连接数、最小连接数、初始连接数等参数 -->
 	<bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource"
 		destroy-method="close"
 		p:driverClass="com.mysql.jdbc.Driver"
@@ -35,18 +35,15 @@
 		<property name="mappingResources">
 			<list>
 				<!-- 以下用来列出Hibernate映射文件 -->
-				<value>org/crazyit/hrsystem/domain/Application.hbm.xml</value>
-				<value>org/crazyit/hrsystem/domain/Attend.hbm.xml</value>
-				<value>org/crazyit/hrsystem/domain/AttendType.hbm.xml</value>
-				<value>org/crazyit/hrsystem/domain/CheckBack.hbm.xml</value>
-				<value>org/crazyit/hrsystem/domain/Employee.hbm.xml</value>
-				<value>org/crazyit/hrsystem/domain/Payment.hbm.xml</value>
+				<value>teamnote/domain/Doc.hbm.xml</value>
+				<value>teamnote/domain/Menu.hbm.xml</value>
+				<value>teamnote/domain/User.hbm.xml</value>
+				<value>teamnote/domain/UserGroup.hbm.xml</value>
 			</list>
 		</property>
 		<!-- 定义Hibernate的SessionFactory的属性 -->
 		<property name="hibernateProperties">
-			<!-- 指定数据库方言、是否自动建表
-				是否生成SQL语句等 	-->
+			<!-- 指定数据库方言、是否自动建表\是否生成SQL语句等 	-->
 			<value>
 			hibernate.dialect=org.hibernate.dialect.MySQLInnoDBDialect
 			hibernate.hbm2ddl.auto=update
@@ -67,96 +64,40 @@
 		"org.springframework.orm.hibernate3.HibernateTransactionManager"
 		p:sessionFactory-ref="sessionFactory"/>
 
-	<!-- 配置事务增强处理Bean,指定事务管理器 -->
-	<tx:advice id="txAdvice" transaction-manager="transactionManager">
-		<!-- 用于配置详细的事务语义 -->
-		<tx:attributes>
-			<!-- 所有以'get'开头的方法是read-only的 -->
-			<tx:method name="get*" read-only="true"/>
-			<!-- 其他方法使用默认的事务设置 -->
-			<tx:method name="*"/>
-		</tx:attributes>
-	</tx:advice>
-	<aop:config>
-		<!-- 配置一个切入点，匹配empManager和mgrManager
-			两个Bean的所有方法的执行 -->
-		<aop:pointcut id="leePointcut"
-			expression="bean(empManager)||bean(mgrManager)"/>
-		<!-- 指定在leePointcut切入点应用txAdvice事务增强处理 -->
-		<aop:advisor advice-ref="txAdvice" 
-			pointcut-ref="leePointcut"/>
-	</aop:config>
+
+	<!-- 配置DAO组件的模板 -->
+	<bean id="daoTemplate" abstract="true" lazy-init="true"
+		p:sessionFactory-ref="sessionFactory"/>
+
+	<bean id="docDao"
+		class="teamnote.dao.impl.DocDaoHibernate"
+		parent="daoTemplate"/>
+
+	<bean id="menuDao"
+		class="teamnote.dao.impl.MenuDaoHibernate"
+		parent="daoTemplate"/>
+
+	<bean id="userDao"
+		class="teamnote.dao.impl.UserDaoHibernate"
+		parent="daoTemplate"/>
+
+	<bean id="userGroupDao"
+		class="teamnote.dao.impl.UserGroupDaoHibernate"
+		parent="daoTemplate"/>
+
 
 	<!-- 定义业务逻辑组件模板 -->
 	<!-- 为之注入DAO组件 -->
-	<bean id="managerTemplate" abstract="true" lazy-init="true"
-		p:appDao-ref="appDao"
-		p:attendDao-ref="attendDao"
-		p:typeDao-ref="attendTypeDao"
-		p:checkDao-ref="checkDao"
-		p:empDao-ref="employeeDao"
-		p:mgrDao-ref="managerDao"
-		p:payDao-ref="payDao"/>
+	<bean id="baseTemplate" abstract="true" lazy-init="true"
+		p:docDao-ref="docDao"
+		p:menuDao-ref="menuDao"
+		p:userDao-ref="userDao"
+		p:userGroupDao-ref="userGroupDao"
+		/>
 
 	<!-- 定义两个业务逻辑组件，继承业务逻辑组件的模板 -->
-	<bean id="empManager"
-		class="org.crazyit.hrsystem.service.impl.EmpManagerImpl"
-		parent="managerTemplate"/>
-	<bean id="mgrManager"
-		class="org.crazyit.hrsystem.service.impl.MgrManagerImpl"
-		parent="managerTemplate"/>
-
-<bean id="cronTriggerPay" 
-	class="org.springframework.scheduling.quartz.CronTriggerBean">
-	<property name="jobDetail">
-		<!-- 使用嵌套Bean的方式来定义任务Bean -->
-		<bean 
-		class="org.springframework.scheduling.quartz.JobDetailBean">
-		<!-- 指定任务Bean的实现类 -->
-			<property name="jobClass"
-				value="org.crazyit.hrsystem.schedule.PayJob"/>
-			<!-- 为任务Bean注入属性 -->
-			<property name="jobDataAsMap">
-				<map>
-					<entry key="empMgr" value-ref="empManager"/>
-				</map>
-			</property>
-		</bean>
-	</property>
-	<!-- 指定Cron表达式：每月3日2时启动 -->
-	<property name="cronExpression" value="0 0 2 3 * ? *"/>
-</bean>
-
-<!-- 定义触发器来管理任务Bean -->
-<bean id="cronTriggerPunch" 
-	class="org.springframework.scheduling.quartz.CronTriggerBean">
-	<property name="jobDetail">
-		<!-- 使用嵌套Bean的方式来定义任务Bean -->
-		<bean
-		class="org.springframework.scheduling.quartz.JobDetailBean">
-			<!-- 指定任务Bean的实现类 -->
-			<property name="jobClass" 
-				value="org.crazyit.hrsystem.schedule.PunchJob"/>
-			<!-- 为任务Bean注入属性 -->
-			<property name="jobDataAsMap">
-				<map>
-					<entry key="empMgr" value-ref="empManager"/>
-				</map>
-			</property>
-		</bean>
-	</property>
-	<!-- 指定Cron表达式：周一到周五7点、12点执行调度 -->
-	<property name="cronExpression" 
-		value="0 0 7,12 ? * MON-FRI"/>
-</bean>
-<!-- 执行实际的调度调度 -->
-<bean 
-class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
-	<property name="triggers">
-		<list>
-			<ref local="cronTriggerPay"/>
-			<ref local="cronTriggerPunch"/>
-		</list>
-	</property>
-</bean>
+	<bean id="userService"
+		class="teamnote.service.impl.UserServiceImpl"
+		parent="baseTemplate"/>
+	
 </beans>
